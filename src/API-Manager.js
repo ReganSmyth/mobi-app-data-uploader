@@ -132,10 +132,12 @@ module.exports = function(){
     const addFeatures = (url, features=[])=>{
 
         const formData = {
-            features,
+            features: JSON.stringify(features),
             token: state.token,
             f: 'json'
         };
+
+        url = url + '/addFeatures';
 
         return new Promise(async(resolve, reject)=>{
 
@@ -154,6 +156,34 @@ module.exports = function(){
 
         });
     };
+
+    const deleteFeatures = (url, where)=>{
+
+        const formData = {
+            where,
+            token: state.token,
+            f: 'json'
+        };
+
+        url = url + '/deleteFeatures';
+
+        return new Promise(async(resolve, reject)=>{
+
+            try {
+                const res = await sendPostRequest(url, formData);
+
+                if(res.error){
+                    reject(`failed to delete features from ${url}`);
+                } else {
+                    resolve(res)
+                }
+                // console.log('getToken response >>>', res);
+            } catch (err){
+                reject(err);
+            }
+
+        });
+    }
 
     const sendPostRequest = (url, formData)=>{
 
@@ -192,6 +222,7 @@ module.exports = function(){
 
     return {
         init,
-        addFeatures
+        addFeatures,
+        deleteFeatures
     };
 }

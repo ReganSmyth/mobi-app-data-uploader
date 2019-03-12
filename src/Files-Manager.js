@@ -41,8 +41,11 @@ const getWorkingFiles = async (dirPath)=>{
 
     files.forEach(f=>{
 
-        const regexpForPredictedHabitat = /predicted-habitat+(\.zip)$/gi;
-        const regexpForModelingExt = /modeling-extent+(\.csv)$/gi;
+        // const regexpForPredictedHabitat = /predicted-habitat+(\.zip)$/gi;
+        // const regexpForModelingExt = /modeling-extent+(\.csv)$/gi;
+
+        const regexpForPredictedHabitat = /(\.zip)$/gi;
+        const regexpForModelingExt = /(\.csv)$/gi;
 
         if(f.match(regexpForPredictedHabitat)){
             workingFiles["predicted-habitat"] = f;
@@ -64,9 +67,14 @@ const readCSV = async(csvFilePath, csvFileName)=>{
     return jsonObj;
 };
 
+const readFile = (filePath, fileName)=>{
+    return fs.createReadStream(join(__dirname, filePath, fileName)); 
+};
+
 module.exports = {
     listFolders,
     // listFiles,
     getWorkingFiles,
-    readCSV
+    readCSV,
+    readFile
 }
