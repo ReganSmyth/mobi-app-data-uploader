@@ -51,7 +51,7 @@ const scanDataFolder = async(dataFolderPath='')=>{
             const workingFiles = await FilesManager.getWorkingFiles(subfolderPath);
             // console.log(workingFiles);
 
-            console.log(`\nstart processing files in ${subfolderName}:`);
+            console.log(`\nstart processing files in ${subfolderName} >>>`);
 
             // TODO: retire the old overall and detailed comments; check the soubfolder name to make sure it matches one of the species name
     
@@ -61,14 +61,15 @@ const scanDataFolder = async(dataFolderPath='')=>{
                 speciesCode: subfolderName
             });
 
+            console.log(updateModelingExtRes);
+
             const updatePredictedHabitatRes = await updatePredictedHabitat({
                 dirPath: subfolderPath, 
                 fileName: workingFiles["predicted-habitat"],
                 speciesCode: subfolderName
             });
-    
-            // console.log(updateModelingExtRes);
-            // console.log(updatePredictedHabitatRes);
+
+            console.log(updatePredictedHabitatRes);
 
         }
 
@@ -103,7 +104,7 @@ const updateModelingExtent = async(options={
                     console.log('successfully deleted old features from modeling extent');
 
                     const addFeaturesToModelingExtentRes = await addFeaturesToModelingExtent(options.speciesCode, csvData);
-                    console.log('successfully added features to modeling extent');
+                    // console.log('successfully added features to modeling extent');
 
                     resolve(`sccessfully updated modeling extent for ${options.speciesCode}`);
                 } else {
@@ -111,8 +112,8 @@ const updateModelingExtent = async(options={
                 }
 
             } catch(err){
-                console.error(err);
-                reject(err);
+                // console.error(err);
+                resolve(err);
             }            
         }
 
@@ -148,14 +149,13 @@ const deleteFeaturesFromModelingExtent = async(speciesCode='')=>{
 }; 
 
 
-
 const updatePredictedHabitat = async(options={
     dirPath: '', 
     fileName: '',
     speciesCode: ''
 })=>{
 
-    console.log(`start updating Predicted Habitat for ${options.speciesCode}`, options);
+    console.log(`start updating Predicted Habitat for ${options.speciesCode}`);
 
     return new Promise(async(resolve, reject)=>{
 
@@ -170,31 +170,72 @@ const updatePredictedHabitat = async(options={
 
                 if(zipFile){
 
-                    console.log('zip file to process', zipFile);
+                    // console.log('zip file to process', zipFile);
                     
-                    // const deleteFeaturesFromModelingExtentRes = await deleteFeaturesFromModelingExtent(options.speciesCode);
-                    // console.log('successfully deleted old features from modeling extent');
+                    const deleteFeaturesFromPredictedHabitatRes = await deleteFeaturesFromPredictedHabitat(options.speciesCode);
+                    console.log('successfully deleted old features from predicted habitat');
 
-                    // const addFeaturesToModelingExtentRes = await addFeaturesToModelingExtent(options.speciesCode, csvData);
-                    // console.log('successfully added features to modeling extent');
+                    // add the input .zip file as a temporary item to ArcGIS Online
+                    const addItemResponse = await apiManager.addItemWithFile({
+                        title: 'agol_tempfile_' + options.fileName,
+                        filename: options.fileName,
+                        type: 'File Geodatabase',
+                        file: zipFile
+                    });
+                    // console.log('addItemResponse', addItemResponse);
 
-                    // resolve(`sccessfully updated modeling extent for ${options.speciesCode}`);
+                    const tempItemID = addItemResponse.success && addItemResponse.id ? addItemResponse.id : null;
+
+                    if(!tempItemID){
+                        resolve('failed to add the file gdb as a temporary item on AGOL...');
+                    }
+
+                    // anaylze the temporary file gdb to get info needed for the append operation
+                    const analyzeItemResponse = await apiManager.analyzeItem({ 
+                        itemID: tempItemID,
+                        filetype: 'fileGeodatabase' 
+                    });
+                    // console.log('analyzeItemResponse', analyzeItemResponse);
+
+                    const layerInfo = analyzeItemResponse.publishParameters && analyzeItemResponse.publishParameters.layers && analyzeItemResponse.publishParameters.layers.length ? analyzeItemResponse.publishParameters.layers[0] :null;
+
+                    if(!layerInfo){
+                        resolve('failed to analyze the temporary file gdb...', analyzeItemResponse);
+                    }
+
+                    // TODO: fix this request url
+                    const appendResponse = await apiManager.append(config["hosted-feature-services"]["predicted-habitat-line"]["layerURL"], { 
+                        appendItemId: tempItemID, 
+                        sourceTableName: layerInfo.name
+                    });
+                    // console.log('appendResponse', appendResponse);
+
+                    await apiManager.deleteItem(tempItemID);
+                    
+                    resolve(`sccessfully updated predicted habitat for ${options.speciesCode}`);
+
                 } else {
                     resolve(`invalide input .zip for ${options.speciesCode}`);
                 }
 
             } catch(err){
-                console.error(err);
-                reject(err);
+                // console.error(err);
+                resolve(err);
             }  
-
-
-            resolve('update predicted habitat');
         }
 
     });
 
 };
+
+const deleteFeaturesFromPredictedHabitat = async(speciesCode='')=>{
+    const SPECIES_FIELD_NAME_FEATURE_TABLE = config["fields-lookup"]["SpeciesCode"]["predicted-habitat"];
+    // TODO: fix this request url
+    const url = config["hosted-feature-services"]["predicted-habitat-line"]["layerURL"];
+    const where = `${SPECIES_FIELD_NAME_FEATURE_TABLE} = '${speciesCode}'`
+
+    return await apiManager.deleteFeatures(url, where);
+}; 
 
 
 start();
