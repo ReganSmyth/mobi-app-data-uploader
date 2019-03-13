@@ -2,32 +2,32 @@
     "hosted-feature-services": {
 
         "species-master-lookup": {
-            "itemID": "e594859fbf194e05a1e8e5a159e889b1",
-            "layerURL": "https://services6.arcgis.com/TAVvcHO9Uf3mGozE/arcgis/rest/services/Species_Master_Lookup/FeatureServer/0",
+            "itemID": "0cb8da6eded24a41806b7c19a336fb7d",
+            "layerURL": "https://services.arcgis.com/EVsTT4nNRCwmHNyb/arcgis/rest/services/Species_Master_Lookup/FeatureServer/0",
             "fields": [
                 
             ]
         },
 
         "predicted-habitat-line": {
-            "itemID": "ddfd0a8b74444dc089be7d7ec8eddc09",
-            "layerURL": "https://services6.arcgis.com/TAVvcHO9Uf3mGozE/arcgis/rest/services/Predicted_Habitat_Lines/FeatureServer/0",
+            "itemID": "0f9af1d772964c4389f229a704690546",
+            "layerURL": "https://services.arcgis.com/EVsTT4nNRCwmHNyb/arcgis/rest/services/Predicted_Habitat_Line/FeatureServer/0",
             "fields": [
                 
             ]
         },
 
         "predicted-habitat-poly": {
-            "itemID": "",
-            "layerURL": "",
+            "itemID": "ed61020a1c5248a79e16f3b6c978ad47",
+            "layerURL": "https://services.arcgis.com/EVsTT4nNRCwmHNyb/arcgis/rest/services/Predicted_Habitat_Polygon/FeatureServer/0",
             "fields": [
                 
             ]
         },
 
         "modeling-extent": {
-            "itemID": "ce88a22c894e473db9e2dd812c04514a",
-            "layerURL": "https://services6.arcgis.com/TAVvcHO9Uf3mGozE/arcgis/rest/services/Species_Modeling_Extent/FeatureServer/0",
+            "itemID": "aeb002731a514c848d30d6c53490a13c",
+            "layerURL": "https://services.arcgis.com/EVsTT4nNRCwmHNyb/arcgis/rest/services/Species_Modeling_Extent/FeatureServer/0",
             "fields": [
                 
             ]

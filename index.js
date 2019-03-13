@@ -63,21 +63,21 @@ const scanDataFolder = async(dataFolderPath='')=>{
 
                 // TODO: retire the old overall and detailed comments; check the soubfolder name to make sure it matches one of the species name
         
-                // const updateModelingExtRes = await updateModelingExtent({
-                //     dirPath: subfolderPath, 
-                //     fileName: workingFiles["modeling-extent"],
-                //     speciesCode: subfolderName
-                // });
+                const updateModelingExtRes = await updateModelingExtent({
+                    dirPath: subfolderPath, 
+                    fileName: workingFiles["modeling-extent"],
+                    speciesCode: subfolderName
+                });
     
-                // console.log(updateModelingExtRes);
+                console.log(updateModelingExtRes);
     
-                // const updatePredictedHabitatRes = await updatePredictedHabitat({
-                //     dirPath: subfolderPath, 
-                //     fileName: workingFiles["predicted-habitat"],
-                //     speciesCode: subfolderName
-                // });
+                const updatePredictedHabitatRes = await updatePredictedHabitat({
+                    dirPath: subfolderPath, 
+                    fileName: workingFiles["predicted-habitat"],
+                    speciesCode: subfolderName
+                });
     
-                // console.log(updatePredictedHabitatRes);
+                console.log(updatePredictedHabitatRes);
             }
             
         }
@@ -108,6 +108,10 @@ const validateSpeciesCode = async(speciesCode='')=>{
     });
 };
 
+const retireOldComment = async(speciesCode='')=>{
+
+};
+
 const updateModelingExtent = async(options={
     dirPath: '', 
     fileName: '',
@@ -135,7 +139,7 @@ const updateModelingExtent = async(options={
                     const addFeaturesToModelingExtentRes = await addFeaturesToModelingExtent(options.speciesCode, csvData);
                     // console.log('successfully added features to modeling extent');
 
-                    resolve(`sccessfully updated modeling extent for ${options.speciesCode}`);
+                    resolve({success: true, message: `sccessfully updated modeling extent for ${options.speciesCode}`});
                 } else {
                     resolve(`invalide input .csv for ${options.speciesCode}`);
                 }
@@ -200,8 +204,13 @@ const updatePredictedHabitat = async(options={
                 if(zipFile){
 
                     // console.log('zip file to process', zipFile);
+
+                    const serviceUrl = getUrlForPredictedHabitat(options.fileName);
+                    if(!serviceUrl){
+                        resolve('failed to retrieve service url for predicted habitat, make sure the .zip file name includes "-line" or "-poly" so we can determine the geometery type');
+                    }
                     
-                    const deleteFeaturesFromPredictedHabitatRes = await deleteFeaturesFromPredictedHabitat(options.speciesCode);
+                    const deleteFeaturesFromPredictedHabitatRes = await deleteFeaturesFromPredictedHabitat(serviceUrl, options.speciesCode);
                     console.log('successfully deleted old features from predicted habitat');
 
                     // add the input .zip file as a temporary item to ArcGIS Online
@@ -233,7 +242,7 @@ const updatePredictedHabitat = async(options={
                     }
 
                     // TODO: fix this request url
-                    const appendResponse = await apiManager.append(config["hosted-feature-services"]["predicted-habitat-line"]["layerURL"], { 
+                    const appendResponse = await apiManager.append(serviceUrl, { 
                         appendItemId: tempItemID, 
                         sourceTableName: layerInfo.name
                     });
@@ -241,7 +250,7 @@ const updatePredictedHabitat = async(options={
 
                     await apiManager.deleteItem(tempItemID);
                     
-                    resolve(`sccessfully updated predicted habitat for ${options.speciesCode}`);
+                    resolve({success: true, message: `sccessfully updated predicted habitat for ${options.speciesCode}`});
 
                 } else {
                     resolve(`invalide input .zip for ${options.speciesCode}`);
@@ -257,14 +266,35 @@ const updatePredictedHabitat = async(options={
 
 };
 
-const deleteFeaturesFromPredictedHabitat = async(speciesCode='')=>{
+const deleteFeaturesFromPredictedHabitat = async(url, speciesCode='')=>{
     const SPECIES_FIELD_NAME_FEATURE_TABLE = config["fields-lookup"]["SpeciesCode"]["predicted-habitat"];
     // TODO: fix this request url
-    const url = config["hosted-feature-services"]["predicted-habitat-line"]["layerURL"];
+    // const url = config["hosted-feature-services"]["predicted-habitat-line"]["layerURL"];
     const where = `${SPECIES_FIELD_NAME_FEATURE_TABLE} = '${speciesCode}'`
 
     return await apiManager.deleteFeatures(url, where);
 }; 
+
+const getUrlForPredictedHabitat = (filename='')=>{
+
+    const urlForLines = config["hosted-feature-services"]["predicted-habitat-line"]["layerURL"];
+    const urlForPolygons = config["hosted-feature-services"]["predicted-habitat-poly"]["layerURL"];
+
+    const regexpForLineFeatures = /-line/gi;
+    const regexpForPolygonFeatures = /-poly|-polygon/gi;
+    
+    const isLine = regexpForLineFeatures.test(filename);
+    const isPoly = regexpForPolygonFeatures.test(filename);
+
+    if(isLine){
+        return urlForLines
+    } else if(isPoly){
+        return urlForPolygons;
+    } else {
+        return null;
+    }
+
+};
 
 
 start();
