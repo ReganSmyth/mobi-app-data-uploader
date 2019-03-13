@@ -1,6 +1,14 @@
 {
     "hosted-feature-services": {
 
+        "species-master-lookup": {
+            "itemID": "e594859fbf194e05a1e8e5a159e889b1",
+            "layerURL": "https://services6.arcgis.com/TAVvcHO9Uf3mGozE/arcgis/rest/services/Species_Master_Lookup/FeatureServer/0",
+            "fields": [
+                
+            ]
+        },
+
         "predicted-habitat-line": {
             "itemID": "ddfd0a8b74444dc089be7d7ec8eddc09",
             "layerURL": "https://services6.arcgis.com/TAVvcHO9Uf3mGozE/arcgis/rest/services/Predicted_Habitat_Lines/FeatureServer/0",
@@ -32,6 +40,7 @@
             "modeling-extent": "HUCID"
         },
         "SpeciesCode": {
+            "species-master-lookup": "cutecode",
             "predicted-habitat": "cutecode",
             "modeling-extent": "SpeciesCode"
         }

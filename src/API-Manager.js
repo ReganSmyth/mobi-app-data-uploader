@@ -358,6 +358,34 @@ module.exports = function(){
         });
     };
 
+    const getCountOfFeatures = (url, where)=>{
+
+        const formData = {
+            where,
+            returnCountOnly: 'true',
+            token: state.token,
+            f: 'json'
+        };
+
+        url = url + '/query';
+
+        return new Promise(async(resolve, reject)=>{
+
+            try {
+                const res = await sendPostRequest(url, formData);
+
+                if(res.error){
+                    reject(`failed to query features from ${url}`);
+                } else {
+                    resolve(res)
+                }
+            } catch (err){
+                reject(err);
+            }
+
+        });
+    }
+
     const sendPostRequest = (url, formData)=>{
 
         formData = formData || {
@@ -402,6 +430,7 @@ module.exports = function(){
         addItemWithFile,
         analyzeItem,
         append,
-        deleteItem
+        deleteItem,
+        getCountOfFeatures
     };
 }

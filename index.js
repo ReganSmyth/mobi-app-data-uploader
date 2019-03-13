@@ -19,7 +19,7 @@ const start = async()=>{
         await apiManager.init({
             username: argv.username,
             password: argv.password,
-            folderName: argv.folderName
+            folderName: argv.arcgisOnlineFolder
         });
 
         scanDataFolder();
@@ -35,12 +35,17 @@ const scanDataFolder = async(dataFolderPath='')=>{
     dataFolderPath = dataFolderPath || '../data';
 
     try {
-        // get all sub folders in data folder, the folder name should be the "species code" 
-        const dataFolders = await FilesManager.listFolders(dataFolderPath);
+        // get all sub folders in data folder if the argv.folderToProcess is not defined, the folder name should be the "species code" 
+        const dataFolders = argv.folderToProcess ? [ argv.folderToProcess ]: await FilesManager.listFolders(dataFolderPath);
         // console.log(dataFolders);
 
         if(!dataFolders.length){
             console.log(`'${dataFolderPath}' folder is empty`);
+            return;
+        }
+
+        if(argv.folderToProcess && !FilesManager.isExisted(`${dataFolderPath}/${argv.folderToProcess}`)){
+            console.log(`invalide folderToProcess: directory ${argv.folderToProcess} does not exist`);
             return;
         }
 
@@ -51,32 +56,56 @@ const scanDataFolder = async(dataFolderPath='')=>{
             const workingFiles = await FilesManager.getWorkingFiles(subfolderPath);
             // console.log(workingFiles);
 
-            console.log(`\nstart processing files in ${subfolderName} >>>`);
+            if(!await validateSpeciesCode(subfolderName)){
+                console.log(`\nskip processing files in ${subfolderName}, the folder name: "${subfolderName}" does not match any species code...Make sure the folder name equals to a 'cutecode' in the Species Master lookup table and try again`);
+            } else {
+                console.log(`\nstart processing files in ${subfolderName} >>>`);
 
-            // TODO: retire the old overall and detailed comments; check the soubfolder name to make sure it matches one of the species name
+                // TODO: retire the old overall and detailed comments; check the soubfolder name to make sure it matches one of the species name
+        
+                // const updateModelingExtRes = await updateModelingExtent({
+                //     dirPath: subfolderPath, 
+                //     fileName: workingFiles["modeling-extent"],
+                //     speciesCode: subfolderName
+                // });
     
-            const updateModelingExtRes = await updateModelingExtent({
-                dirPath: subfolderPath, 
-                fileName: workingFiles["modeling-extent"],
-                speciesCode: subfolderName
-            });
-
-            console.log(updateModelingExtRes);
-
-            const updatePredictedHabitatRes = await updatePredictedHabitat({
-                dirPath: subfolderPath, 
-                fileName: workingFiles["predicted-habitat"],
-                speciesCode: subfolderName
-            });
-
-            console.log(updatePredictedHabitatRes);
-
+                // console.log(updateModelingExtRes);
+    
+                // const updatePredictedHabitatRes = await updatePredictedHabitat({
+                //     dirPath: subfolderPath, 
+                //     fileName: workingFiles["predicted-habitat"],
+                //     speciesCode: subfolderName
+                // });
+    
+                // console.log(updatePredictedHabitatRes);
+            }
+            
         }
 
     } catch(err){
         console.log(err);
     }
 
+};
+
+
+const validateSpeciesCode = async(speciesCode='')=>{
+
+    const SPECIES_FIELD_NAME_FEATURE_TABLE = config["fields-lookup"]["SpeciesCode"]["species-master-lookup"];
+    const url = config["hosted-feature-services"]["species-master-lookup"]["layerURL"];
+    const where = `${SPECIES_FIELD_NAME_FEATURE_TABLE} = '${speciesCode}'`;
+    
+    return new Promise(async(resolve, reject)=>{
+
+        try {
+            const queryRes = await apiManager.getCountOfFeatures(url, where);
+            // console.log(queryRes);
+            const res = queryRes.count ? true : false;
+            resolve(res);
+        } catch(err){
+            reject(err);
+        }
+    });
 };
 
 const updateModelingExtent = async(options={

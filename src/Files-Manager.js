@@ -32,6 +32,11 @@ const listFiles = async(dirPath='')=>{
     return files;
 };
 
+const isExisted = (dirPath)=>{
+    dirPath = join(__dirname, dirPath);
+    return fs.existsSync(dirPath);
+}
+
 // get the .csv file for the modeling extent and .zip for the predicted habitat
 const getWorkingFiles = async (dirPath)=>{
     const files = await listFiles(dirPath);
@@ -76,5 +81,6 @@ module.exports = {
     // listFiles,
     getWorkingFiles,
     readCSV,
-    readFile
+    readFile,
+    isExisted
 }
