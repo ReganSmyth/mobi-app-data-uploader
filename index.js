@@ -5,6 +5,7 @@ const APImanager = require('./src/API-Manager');
 const FilesManager = require('./src/Files-Manager');
 const Helper = require('./src/Helper');
 const config = require('./src/config/main.json');
+// const config = require('./src/config/test.json');
 
 const apiManager = new APImanager();
 
@@ -61,26 +62,29 @@ const scanDataFolder = async(dataFolderPath='')=>{
             } else {
                 console.log(`\nstart processing files in ${subfolderName} >>>`);
 
-                // TODO: retire the old overall and detailed comments; check the soubfolder name to make sure it matches one of the species name
+                const speciesCode = subfolderName;
         
                 const updateModelingExtRes = await updateModelingExtent({
                     dirPath: subfolderPath, 
                     fileName: workingFiles["modeling-extent"],
-                    speciesCode: subfolderName
+                    speciesCode: speciesCode
                 });
-    
                 console.log(updateModelingExtRes);
     
                 const updatePredictedHabitatRes = await updatePredictedHabitat({
                     dirPath: subfolderPath, 
                     fileName: workingFiles["predicted-habitat"],
-                    speciesCode: subfolderName
+                    speciesCode: speciesCode
                 });
-    
                 console.log(updatePredictedHabitatRes);
+
+                const retireOldCommentRes = await retireOldComment(speciesCode);
+                console.log(retireOldCommentRes);
             }
             
         }
+
+        console.log('\nsuccessfully uploaded/processed all data folders.');
 
     } catch(err){
         console.log(err);
@@ -98,7 +102,7 @@ const validateSpeciesCode = async(speciesCode='')=>{
     return new Promise(async(resolve, reject)=>{
 
         try {
-            const queryRes = await apiManager.getCountOfFeatures(url, where);
+            const queryRes = await apiManager.queryFeatures(url, where, true);
             // console.log(queryRes);
             const res = queryRes.count ? true : false;
             resolve(res);
@@ -110,6 +114,61 @@ const validateSpeciesCode = async(speciesCode='')=>{
 
 const retireOldComment = async(speciesCode='')=>{
 
+    const tasks = [
+        {
+            url: config["hosted-feature-services"]["overall-feedback"]["layerURL"],
+            tableName: 'overall-feedback'
+        },
+        {
+            url: config["hosted-feature-services"]["detailed-feedback"]["layerURL"],
+            tableName: 'detailed-feedback'
+        }
+    ]
+
+    const exec = async(options={
+        tableName: '' // "overall-feedback" | "detailed-feedback"
+    })=>{
+
+        const tableName = options.tableName;
+        const url = options.url;
+
+        try {
+            const fieldNameSpecies = config["fields-lookup"]["SpeciesCode"][tableName];
+            const fieldNamseRetirementDate = config["fields-lookup"]["RetirementDate"][tableName];
+            const where = `${fieldNameSpecies} = '${speciesCode}' AND ${fieldNamseRetirementDate} IS NULL`;
+    
+            const queryRes = await apiManager.queryFeatures(url, where);
+    
+            if(queryRes.features && queryRes.features.length){
+                    
+                const currentTime = new Date();
+    
+                const featuresToUpdate = queryRes.features.map(d=>{
+                    d.attributes[fieldNamseRetirementDate] = currentTime.getTime().toString();
+                    return d;
+                });
+    
+                const updateFeaturesResponse = await apiManager.updateFeatures(url, featuresToUpdate);
+    
+                return `successfully retired old feedback for ${speciesCode}`;
+    
+            } else {
+                return `no feature found in ${tableName} table for ${speciesCode}, skip retire old comment step`;
+            }
+        }     
+        catch(err){
+            console.log(err);
+            return err;
+        }
+    };
+
+    return new Promise(async(resolve, reject)=>{
+        for(let i = 0, len = tasks.length ; i < len; i++){
+            const res = await exec(tasks[i]);
+            console.log(res);
+        }
+        resolve(`succssfully retired all old comments associated with ${speciesCode}`);
+    });
 };
 
 const updateModelingExtent = async(options={

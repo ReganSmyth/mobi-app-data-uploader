@@ -31,6 +31,16 @@
             "fields": [
                 
             ]
+        },
+
+        "overall-feedback": {
+            "itemID": "2c70447147414e24ae39c7d1f307e20c",
+            "layerURL": "https://services.arcgis.com/EVsTT4nNRCwmHNyb/arcgis/rest/services/Overall_Feedback/FeatureServer/0"
+        },
+
+        "detailed-feedback": {
+            "itemID": "024d62f5fdb44ddab4e13e08d4b5a84d",
+            "layerURL": "https://services.arcgis.com/EVsTT4nNRCwmHNyb/arcgis/rest/services/Detailed_Feedback/FeatureServer/0"
         }
     },
 
@@ -42,7 +52,13 @@
         "SpeciesCode": {
             "species-master-lookup": "cutecode",
             "predicted-habitat": "cutecode",
-            "modeling-extent": "SpeciesCode"
+            "modeling-extent": "SpeciesCode",
+            "overall-feedback": "Species",
+            "detailed-feedback": "Species"
+        },
+        "RetirementDate": {
+            "overall-feedback": "RetirementDate",
+            "detailed-feedback": "RetirementDate"
         }
     }
 

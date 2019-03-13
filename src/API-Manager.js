@@ -157,6 +157,34 @@ module.exports = function(){
         });
     };
 
+    const updateFeatures = (url, features=[])=>{
+
+        const formData = {
+            features: JSON.stringify(features),
+            token: state.token,
+            f: 'json'
+        };
+
+        url = url + '/updateFeatures';
+
+        return new Promise(async(resolve, reject)=>{
+
+            try {
+                const res = await sendPostRequest(url, formData);
+
+                if(res.error){
+                    reject(`failed to add features to ${url}`);
+                } else {
+                    resolve(res)
+                }
+                // console.log('getToken response >>>', res);
+            } catch (err){
+                reject(err);
+            }
+
+        });
+    };
+
     const deleteFeatures = (url, where)=>{
 
         const formData = {
@@ -358,13 +386,18 @@ module.exports = function(){
         });
     };
 
-    const getCountOfFeatures = (url, where)=>{
+    const queryFeatures = (url, where, returnCountOnly=false)=>{
 
         const formData = {
             where,
-            returnCountOnly: 'true',
+            // returnCountOnly: 'true',
+            outFields: '*',
             token: state.token,
             f: 'json'
+        };
+
+        if(returnCountOnly){
+            formData.returnCountOnly = 'true';
         };
 
         url = url + '/query';
@@ -375,7 +408,7 @@ module.exports = function(){
                 const res = await sendPostRequest(url, formData);
 
                 if(res.error){
-                    reject(`failed to query features from ${url}`);
+                    reject(`failed to query features from ${url} >>> ${JSON.stringify(res.error)}`);
                 } else {
                     resolve(res)
                 }
@@ -431,6 +464,7 @@ module.exports = function(){
         analyzeItem,
         append,
         deleteItem,
-        getCountOfFeatures
+        queryFeatures,
+        updateFeatures
     };
 }
