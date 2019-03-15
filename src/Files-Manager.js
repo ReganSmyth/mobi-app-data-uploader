@@ -51,11 +51,14 @@ const getWorkingFiles = async (dirPath)=>{
 
         const regexpForPredictedHabitat = /(\.zip)$/gi;
         const regexpForModelingExt = /(\.csv)$/gi;
+        const regexpForPDF = /(\.pdf)$/gi;
 
         if(f.match(regexpForPredictedHabitat)){
             workingFiles["predicted-habitat"] = f;
         } else if(f.match(regexpForModelingExt)){
             workingFiles["modeling-extent"] = f;
+        } else if(f.match(regexpForPDF)){
+            workingFiles["pdf"] = f;
         } else {
             // do nothing
         }

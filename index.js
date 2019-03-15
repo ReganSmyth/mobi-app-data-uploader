@@ -17,10 +17,14 @@ const start = async()=>{
 
     try {
 
+        const mainFolderName = argv.arcgisOnlineFolder || config.ArcGIS_Online_Folders.main; //'MobiReviewApp';
+        const pdfFolderName = argv.pdfFolderName || config.ArcGIS_Online_Folders.pdf;
+
         await apiManager.init({
             username: argv.username,
             password: argv.password,
-            folderName: argv.arcgisOnlineFolder
+            mainfolderName: mainFolderName,
+            pdfFolderName: pdfFolderName
         });
 
         scanDataFolder();
@@ -78,6 +82,13 @@ const scanDataFolder = async(dataFolderPath='')=>{
                 });
                 console.log(updatePredictedHabitatRes);
 
+                const uploadPdfRes = await uploadPDFfile({
+                    dirPath: subfolderPath, 
+                    fileName: workingFiles["pdf"],
+                    speciesCode: speciesCode
+                });
+                console.log(uploadPdfRes);
+
                 const retireOldCommentRes = await retireOldComment(speciesCode);
                 console.log(retireOldCommentRes);
             }
@@ -90,85 +101,6 @@ const scanDataFolder = async(dataFolderPath='')=>{
         console.log(err);
     }
 
-};
-
-
-const validateSpeciesCode = async(speciesCode='')=>{
-
-    const SPECIES_FIELD_NAME_FEATURE_TABLE = config["fields-lookup"]["SpeciesCode"]["species-master-lookup"];
-    const url = config["hosted-feature-services"]["species-master-lookup"]["layerURL"];
-    const where = `${SPECIES_FIELD_NAME_FEATURE_TABLE} = '${speciesCode}'`;
-    
-    return new Promise(async(resolve, reject)=>{
-
-        try {
-            const queryRes = await apiManager.queryFeatures(url, where, true);
-            // console.log(queryRes);
-            const res = queryRes.count ? true : false;
-            resolve(res);
-        } catch(err){
-            reject(err);
-        }
-    });
-};
-
-const retireOldComment = async(speciesCode='')=>{
-
-    const tasks = [
-        {
-            url: config["hosted-feature-services"]["overall-feedback"]["layerURL"],
-            tableName: 'overall-feedback'
-        },
-        {
-            url: config["hosted-feature-services"]["detailed-feedback"]["layerURL"],
-            tableName: 'detailed-feedback'
-        }
-    ]
-
-    const exec = async(options={
-        tableName: '' // "overall-feedback" | "detailed-feedback"
-    })=>{
-
-        const tableName = options.tableName;
-        const url = options.url;
-
-        try {
-            const fieldNameSpecies = config["fields-lookup"]["SpeciesCode"][tableName];
-            const fieldNamseRetirementDate = config["fields-lookup"]["RetirementDate"][tableName];
-            const where = `${fieldNameSpecies} = '${speciesCode}' AND ${fieldNamseRetirementDate} IS NULL`;
-    
-            const queryRes = await apiManager.queryFeatures(url, where);
-    
-            if(queryRes.features && queryRes.features.length){
-                    
-                const currentTime = new Date();
-    
-                const featuresToUpdate = queryRes.features.map(d=>{
-                    d.attributes[fieldNamseRetirementDate] = currentTime.getTime().toString();
-                    return d;
-                });
-    
-                const updateFeaturesResponse = await apiManager.updateFeatures(url, featuresToUpdate);
-    
-                return `successfully retired old feedback for ${speciesCode}`;
-    
-            } else {
-                return `no feature found in ${tableName} table for ${speciesCode}, skip retire old comment step`;
-            }
-        }     
-        catch(err){
-            console.log(err);
-            return err;
-        }
-    };
-
-    return new Promise(async(resolve, reject)=>{
-        for(let i = 0, len = tasks.length ; i < len; i++){
-            const res = await exec(tasks[i]);
-            console.log(res);
-        }
-        resolve(`succssfully retired all old comments associated with ${speciesCode}`);
-    });
 };
 
 const updateModelingExtent = async(options={
@@ -355,5 +287,156 @@ const getUrlForPredictedHabitat = (filename='')=>{
 
 };
 
+const uploadPDFfile = async(options={
+    dirPath: '', 
+    fileName: '',
+    speciesCode: ''
+})=>{
+    // console.log('uploadPDFfile', options);
+
+    if(!options.fileName){
+        // console.error('no .csv file found for predicted habitat, skip updating predicted habitat');
+        return `no .pdf file found for ${options.speciesCode}`;
+    } else {
+
+        const pdfFile = FilesManager.readFile(options.dirPath, options.fileName);
+        if(!pdfFile){
+            return `invalide input .pdf file for ${options.speciesCode}`;
+        }
+    
+        try {
+
+            const pdfLookupTableUrl = config["hosted-feature-services"]["pdf-lookup"]["layerURL"];
+            const fieldNameCutecode = config["hosted-feature-services"]["pdf-lookup"]["fields"][0]["name"];
+            const fieldNameItemID = config["hosted-feature-services"]["pdf-lookup"]["fields"][1]["name"];
+            const fieldNameUrl = config["hosted-feature-services"]["pdf-lookup"]["fields"][2]["name"];
+
+            // 1. check if PDF already exists in lookup table
+            const queryResponse = await apiManager.queryFeatures(pdfLookupTableUrl, `${fieldNameCutecode} = '${options.speciesCode}'`);
+            // console.log(queryResponse);
+            const existingFeature = queryResponse.features && queryResponse.features.length ? queryResponse.features[0] : null;
+
+            // 2. if so, remove from folder and lookup table
+            if(existingFeature){
+                const existingFeatureItemID = existingFeature.attributes[fieldNameItemID];
+                const deletePdfFileResponse = await apiManager.deleteItem(existingFeatureItemID, true);
+                const deleteExistingFeatureResponse = await apiManager.deleteFeatures(pdfLookupTableUrl, `${fieldNameCutecode} = '${options.speciesCode}'`);
+            }
+
+            // 3. add new item
+            const addItemResponse = await apiManager.addItemWithFile({
+                title: options.fileName,
+                filename: options.fileName,
+                type: 'PDF',
+                file: pdfFile
+            });
+            // console.log(addItemResponse);
+
+            const itemId = addItemResponse.success && addItemResponse.id ? addItemResponse.id : null;
+            if(!itemId){
+                return `failed to add pdf item`;
+            }
+
+            // 4. share item
+            const shareItemResponse = await apiManager.shareItem(itemId);
+            // console.log(shareItemResponse);
+
+            // 5. write to lookup table
+            const featureToAdd = {
+                "attributes" : {
+                    [fieldNameCutecode]: options.speciesCode,
+                    [fieldNameItemID]: itemId,
+                    [fieldNameUrl]: `https://arcgis.com/sharing/rest/content/items/${itemId}/data`
+                }
+            };
+            const addFeaturesResponse = await apiManager.addFeatures(pdfLookupTableUrl, [featureToAdd]);
+            // console.log(addFeaturesResponse);
+            
+            return 'uploaded pdf file';
+
+        } catch(err){
+            return err;
+        }
+
+    }
+};
+
+const retireOldComment = async(speciesCode='')=>{
+
+    const tasks = [
+        {
+            url: config["hosted-feature-services"]["overall-feedback"]["layerURL"],
+            tableName: 'overall-feedback'
+        },
+        {
+            url: config["hosted-feature-services"]["detailed-feedback"]["layerURL"],
+            tableName: 'detailed-feedback'
+        }
+    ]
+
+    const exec = async(options={
+        tableName: '' // "overall-feedback" | "detailed-feedback"
+    })=>{
+
+        const tableName = options.tableName;
+        const url = options.url;
+
+        try {
+            const fieldNameSpecies = config["fields-lookup"]["SpeciesCode"][tableName];
+            const fieldNamseRetirementDate = config["fields-lookup"]["RetirementDate"][tableName];
+            const where = `${fieldNameSpecies} = '${speciesCode}' AND ${fieldNamseRetirementDate} IS NULL`;
+    
+            const queryRes = await apiManager.queryFeatures(url, where);
+    
+            if(queryRes.features && queryRes.features.length){
+                    
+                const currentTime = new Date();
+    
+                const featuresToUpdate = queryRes.features.map(d=>{
+                    d.attributes[fieldNamseRetirementDate] = currentTime.getTime().toString();
+                    return d;
+                });
+    
+                const updateFeaturesResponse = await apiManager.updateFeatures(url, featuresToUpdate);
+    
+                return `successfully retired old feedback for ${speciesCode}`;
+    
+            } else {
+                return `no feature found in ${tableName} table for ${speciesCode}, skip retire old comment step`;
+            }
+        }     
+        catch(err){
+            console.log(err);
+            return err;
+        }
+    };
+
+    return new Promise(async(resolve, reject)=>{
+        for(let i = 0, len = tasks.length ; i < len; i++){
+            const res = await exec(tasks[i]);
+            // console.log(res);
+        }
+        resolve(`succssfully retired all old comments associated with ${speciesCode}`);
+    });
+};
+
+const validateSpeciesCode = async(speciesCode='')=>{
+
+    const SPECIES_FIELD_NAME_FEATURE_TABLE = config["fields-lookup"]["SpeciesCode"]["species-master-lookup"];
+    const url = config["hosted-feature-services"]["species-master-lookup"]["layerURL"];
+    const where = `${SPECIES_FIELD_NAME_FEATURE_TABLE} = '${speciesCode}'`;
+    
+    return new Promise(async(resolve, reject)=>{
+
+        try {
+            const queryRes = await apiManager.queryFeatures(url, where, true);
+            // console.log(queryRes);
+            const res = queryRes.count ? true : false;
+            resolve(res);
+        } catch(err){
+            reject(err);
+        }
+    });
+};
 
 start();

@@ -1,4 +1,9 @@
 {
+    "ArcGIS_Online_Folders" : {
+        "main": "MobiReviewApp",
+        "pdf": "PDF"
+    },
+
     "hosted-feature-services": {
 
         "species-master-lookup": {
@@ -41,6 +46,22 @@
         "detailed-feedback": {
             "itemID": "024d62f5fdb44ddab4e13e08d4b5a84d",
             "layerURL": "https://services.arcgis.com/EVsTT4nNRCwmHNyb/arcgis/rest/services/Detailed_Feedback/FeatureServer/0"
+        },
+
+        "pdf-lookup": {
+            "itemID": "b72852485bf94c339e0ea4fa873c5cc6",
+            "layerURL": "https://services.arcgis.com/EVsTT4nNRCwmHNyb/arcgis/rest/services/PDF_Lookup/FeatureServer/0",
+            "fields": [
+                {
+                    "name": "cutecode"
+                },
+                {
+                    "name": "itemID"
+                },
+                {
+                    "name": "url"
+                }
+            ]
         }
     },
 
@@ -52,6 +73,7 @@
         "SpeciesCode": {
             "species-master-lookup": "cutecode",
             "predicted-habitat": "cutecode",
+            "pdf-lookup": "cutecode",
             "modeling-extent": "SpeciesCode",
             "overall-feedback": "Species",
             "detailed-feedback": "Species"

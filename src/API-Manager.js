@@ -7,18 +7,20 @@ module.exports = function(){
 
     const state = {
         'username': '',
-        'folderID': '',
+        'mainFolderID': '',
+        'pdfFolderID': '',
         'token': '',
     };
 
     const init = async(options={
         username: '',
         password: '',
-        folderName: ''
+        mainfolderName: '',
+        pdfFolderName: ''
     })=>{
 
-        if(!options.username || !options.password || !options.folderName){
-            console.error('username, password and folder name are required to initiate API Manager');
+        if(!options.username || !options.password || !options.mainfolderName || !options.pdfFolderName){
+            console.error('username, password, main folder name and pdf folder Name are required to initiate API Manager');
             return;
         }
 
@@ -30,8 +32,8 @@ module.exports = function(){
                 const token = await getToken(options.username, options.password);
                 setToken(token);
     
-                const folderID = await getFolderID(options.folderName);
-                setFolderID(folderID);
+                const folders = await getFolders();
+                setFolderIDs(folders, options.mainfolderName, options.pdfFolderName);
     
                 resolve('successfully initiated api manager');
     
@@ -52,8 +54,18 @@ module.exports = function(){
         // console.log('token is set', state.token);
     };
 
-    const setFolderID = (folderID)=>{
-        state.folderID = folderID;
+    const setFolderIDs = (folders=[], mainfolderName, pdfFolderName)=>{
+        // state.folderID = folderID;
+
+        folders.forEach(folder=>{
+            if(folder.title === mainfolderName){
+                state.mainFolderID = folder.id;
+            } else if(folder.title === pdfFolderName){
+                state.pdfFolderID = folder.id;
+            } else {
+                // do nothing
+            }
+        });
     };
 
     const getToken = (username, password)=>{
@@ -91,12 +103,7 @@ module.exports = function(){
 
     };
 
-    const getFolderID = (folderName)=>{
-
-        if(!folderName){
-            console.error('folder name is required to get the folder ID');
-            return;
-        }
+    const getFolders = ()=>{
 
         const url = getRequestUrl('userContent');
 
@@ -107,19 +114,7 @@ module.exports = function(){
 
                 const folders = res.folders || [];
 
-                let folderId = '';
-
-                folders.forEach(d=>{
-                    if(d.title === folderName){
-                        folderId = d.id;
-                    }
-                });
-    
-                if(folderId){
-                    resolve(folderId);
-                } else {
-                    reject('no folder ID found for ' + folderName);
-                }
+                resolve(folders)
 
                 // console.log('getFolderID response >>>', res);
             } catch (err){
@@ -219,7 +214,7 @@ module.exports = function(){
         file: null
     })=>{
 
-        const url = getRequestUrl('addItem');
+        const url = options.type === 'PDF' ? getRequestUrl('addItem', { folderID: state.pdfFolderID }) : getRequestUrl('addItem');
 
         const formData = {
             // Pass a simple key-value pair
@@ -366,8 +361,8 @@ module.exports = function(){
         });
     };
 
-    const deleteItem = (itemID)=>{
-        const url = getRequestUrl('deleteItem', itemID);
+    const deleteItem = (itemID, isPdf=false)=>{
+        const url = isPdf ? getRequestUrl('deleteItem', { itemID, folderID: state.pdfFolderID }) : getRequestUrl('deleteItem', { itemID });
 
         return new Promise(async(resolve, reject)=>{
 
@@ -417,7 +412,35 @@ module.exports = function(){
             }
 
         });
-    }
+    };
+
+    const shareItem = async(itemID)=>{
+
+        const url = getRequestUrl('shareItem');
+        const formData = {
+            items: itemID,
+            everyone: 'true',
+            token: state.token,
+            f: 'json'
+        };
+
+        return new Promise(async(resolve, reject)=>{
+
+            try {
+                const res = await sendPostRequest(url, formData);
+    
+                if(res.error){
+                    reject(`failed to share item: ${itemID} >>> ${JSON.stringify(res.error)}`);
+                } else {
+                    resolve(res)
+                }
+            } catch (err){
+                reject(err);
+            }
+
+        });
+
+    };
 
     const sendPostRequest = (url, formData)=>{
 
@@ -439,18 +462,25 @@ module.exports = function(){
         });
     };
 
-    const getRequestUrl = (operationName='', itemID='')=>{
+    const getRequestUrl = (operationName='', options={
+        itemID: '',
+        folderID: '',
+    })=>{
+
+        const itemID = options.itemID;
+        const folderID = options.folderID || state.mainFolderID;
         
         const rootURL = 'https://www.arcgis.com/sharing/rest';
         const userContentURL = `${rootURL}/content/users/${state.username}`;
-        const userFolderURL = `${userContentURL}/${state.folderID}`
+        const userFolderURL = `${userContentURL}/${folderID}`;
 
         const requestURLs = {
             'generateToken': `${rootURL}/generateToken`,
             'userContent': userContentURL,
             'addItem': `${userFolderURL}/addItem`,
             'anazlye': `${rootURL}/content/features/analyze`,
-            'deleteItem': `${userFolderURL}/items/${itemID}/delete`
+            'deleteItem': `${userFolderURL}/items/${itemID}/delete`,
+            'shareItem': `${userContentURL}/shareItems`
         };
 
         return requestURLs[operationName];
@@ -465,6 +495,7 @@ module.exports = function(){
         append,
         deleteItem,
         queryFeatures,
-        updateFeatures
+        updateFeatures,
+        shareItem
     };
 }

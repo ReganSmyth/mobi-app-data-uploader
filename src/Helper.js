@@ -11,7 +11,7 @@ const checkParamters = (argv={})=>{
         },
         {
             key: 'arcgisOnlineFolder',
-            isRequired: true
+            isRequired: false
         }
     ];
 
