@@ -10,7 +10,15 @@ const checkParamters = (argv={})=>{
             isRequired: true
         },
         {
-            key: 'arcgisOnlineFolder',
+            key: 'folderToProcess',
+            isRequired: false
+        },
+        {
+            key: 'arcgisOnlineMainFolder',
+            isRequired: false
+        },
+        {
+            key: 'arcgisOnlinePdfFolder',
             isRequired: false
         }
     ];

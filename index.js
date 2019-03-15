@@ -17,8 +17,8 @@ const start = async()=>{
 
     try {
 
-        const mainFolderName = argv.arcgisOnlineFolder || config.ArcGIS_Online_Folders.main; //'MobiReviewApp';
-        const pdfFolderName = argv.pdfFolderName || config.ArcGIS_Online_Folders.pdf;
+        const mainFolderName = argv.arcgisOnlineMainFolder || config.ArcGIS_Online_Folders.main; //'MobiReviewApp';
+        const pdfFolderName = argv.arcgisOnlinePdfFolder || config.ArcGIS_Online_Folders.pdf;
 
         await apiManager.init({
             username: argv.username,
@@ -38,6 +38,11 @@ const start = async()=>{
 const scanDataFolder = async(dataFolderPath='')=>{
 
     dataFolderPath = dataFolderPath || '../data';
+
+    if(!FilesManager.isExisted(dataFolderPath)){
+        console.log(`data folder (${dataFolderPath}) does not exist`);
+        return;
+    }
 
     try {
         // get all sub folders in data folder if the argv.folderToProcess is not defined, the folder name should be the "species code" 
